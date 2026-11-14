@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Russian Roulette</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  :root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-tertiary: #1a1a24;
+    --accent: #c9a227;
+    --accent-glow: #e6c158;
+    --danger: #d32f2f;
+    --danger-glow: #ff5252;
+    --text-primary: #e8e8ec;
+    --text-secondary: #8a8a94;
+    --border: #2a2a35;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 50% 0%, rgba(201, 162, 39, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(211, 47, 47, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(201, 162, 39, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201, 162, 39, 0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+    padding: 24px;
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    text-align: center;
+    opacity: 0;
+    animation: fadeIn 1s ease 0.2s forwards;
+  }
+
+  .title span {
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(201, 162, 39, 0.5);
+  }
+
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  /* Revolver stage */
+  .stage {
+    position: relative;
+    width: min(90vw, 420px);
+    height: min(90vw, 420px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: fadeIn 1s ease 0.4s forwards;
+  }
+
+  .stage::before {
+    content: '';
+    position: absolute;
+    inset: -10%;
+    background: radial-gradient(circle, rgba(201, 162, 39, 0.06) 0%, transparent 60%);
+    border-radius: 50%;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.08); opacity: 1; }
+  }
+
+  .revolver {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.6));
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .revolver.shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  .revolver.clicking {
+    animation: recoil 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes shake {
+    10%, 90% { transform: translate(-2px, 1px) rotate(-1deg); }
+    20%, 80% { transform: translate(4px, -2px) rotate(1.5deg); }
+    30%, 50%, 70% { transform: translate(-6px, 2px) rotate(-2deg); }
+    40%, 60% { transform: translate(6px, -1px) rotate(2deg); }
+  }
+
+  @keyframes recoil {
+    0% { transform: scale(1); }
+    30% { transform: scale(0.96) rotate(-2deg); }
+    60% { transform: scale(1.02) rotate(1deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+
+  .cylinder {
+    transform-origin: 50% 50%;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .cylinder.spinning {
+    transition: transform 0.8s cubic-bezier(0.15, 0.85, 0.35, 1);
+  }
+
+  .chamber {
+    fill: #0f0f16;
+    stroke: #2a2a35;
+    stroke-width: 1.5;
+  }
+
+  .chamber.spent {
+    fill: #1a0f0f;
+    stroke: #3d1a1a;
+  }
+
+  .bullet {
+    fill: url(#bulletGradient);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .bullet.visible {
+    opacity: 1;
+  }
+
+  .bullet.fired {
+    opacity: 0;
+    animation: fireBullet 0.4s ease-out forwards;
+  }
+
+  @keyframes fireBullet {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.6); }
+    100% { opacity: 0; transform: scale(0.3); }
+  }
+
+  /* Flash */
+  .flash {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(255, 220, 120, 0.9) 0%, rgba(255, 100, 50, 0.6) 30%, transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+  }
+
+  .flash.active {
+    animation: flashAnim 0.5s ease-out;
+  }
+
+  @keyframes flashAnim {
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* HUD */
+  .hud {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    opacity: 0;
+    animation: fadeIn 1s ease 0.6s forwards;
+  }
+
+  .stat {
+    flex: 1;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-value.danger {
+    color: var(--danger-glow);
+    text-shadow: 0 0 15px rgba(255, 82, 82, 0.4);
+  }
+
+  /* Action button */
+  .action-btn {
+    width: 100%;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity: 0;
+    animation: fadeIn 1s ease 0.8s forwards;
+  }
+
+  .action-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: -1;
+  }
+
+  .action-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 40px rgba(201, 162, 39, 0.2);
+  }
+
+  .action-btn:hover:not(:disabled)::before {
+    opacity: 0.15;
+  }
+
+  .action-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    animation: none;
+  }
+
+  .action-btn.danger {
+    border-color: var(--danger);
+  }
+
+  .action-btn.danger:hover:not(:disabled) {
+    box-shadow: 0 10px 40px rgba(211, 47, 47, 0.3);
+  }
+
+  .action-btn.danger::before {
+    background: linear-gradient(135deg, var(--danger), var(--danger-glow));
+  }
+
+  .action-btn .btn-text {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Message */
+  .message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: min(10vw, 56px);
+    font-weight: 800;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 50;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .message.show {
+    animation: messageAnim 2.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .message.win {
+    color: var(--accent-glow);
+    text-shadow: 
+      0 0 20px rgba(201, 162, 39, 0.8),
+      0 0 60px rgba(201, 162, 39, 0.4),
+      0 0 100px rgba(201, 162, 39, 0.2);
+  }
+
+  .message.lose {
+    color: var(--danger-glow);
+    text-shadow: 
+      0 0 20px rgba(255, 82, 82, 0.8),
+      0 0 60px rgba(255, 82, 82, 0.4),
+      0 0 100px rgba(255, 82, 82, 0.2);
+  }
+
+  @keyframes messageAnim {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    30% { transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+  }
+
+  /* Particles */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    border-radius: 50%;
+    z-index: 60;
+  }
+
+  /* Difficulty selector */
+  .difficulty {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    opacity: 0;
+    animation: fadeIn 1s ease 0.7s forwards;
+  }
+
+  .diff-btn {
+    flex: 1;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .diff-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: var(--accent);
+  }
+
+  .diff-btn.active {
+    background: linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05));
+    border-color: var(--accent);
+    color: var(--accent-glow);
+  }
+
+  .diff-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .container { gap: 24px; padding: 16px; }
+    .stat { padding: 12px; }
+    .stat-value { font-size: 18px; }
+    .action-btn { padding: 16px; font-size: 12px; letter-spacing: 3px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+<div class="message" id="message"></div>
+
+<div class="container">
+  <div class="title">Russian <span>Roulette</span></div>
+
+  <div class="stage">
+    <svg class="revolver" id="revolver" viewBox="0 0 400 400">
+      <defs>
+        <radialGradient id="cylinderGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#2a2a35"/>
+          <stop offset="70%" stop-color="#1a1a24"/>
+          <stop offset="100%" stop-color="#0f0f16"/>
+        </radialGradient>
+        <linearGradient id="bulletGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#e6c158"/>
+          <stop offset="50%" stop-color="#c9a227"/>
+          <stop offset="100%" stop-color="#8a6f1a"/>
+        </linearGradient>
+        <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#3a3a48"/>
+          <stop offset="50%" stop-color="#1a1a24"/>
+          <stop offset="100%" stop-color="#2a2a35"/>
+        </linearGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+
+      <!-- Outer ring -->
+      <circle cx="200" cy="200" r="180" fill="none" stroke="#1a1a24" stroke-width="2"/>
+      <circle cx="200" cy="200" r="170" fill="none" stroke="#2a2a35" stroke-width="1" opacity="0.5"/>
+
+      <!-- Cylinder group -->
+      <g class="cylinder" id="cylinder">
+        <!-- Cylinder body -->
+        <circle cx="200" cy="200" r="150" fill="url(#cylinderGrad)" stroke="#3a3a48" stroke-width="2"/>
+        <circle cx="200" cy="200" r="140" fill="none" stroke="#2a2a35" stroke-width="1"/>
+        
+        <!-- Chambers -->
+        <g id="chambers"></g>
+
+        <!-- Center pin -->
+        <circle cx="200" cy="200" r="40" fill="url(#metalGrad)" stroke="#4a4a58" stroke-width="2"/>
+        <circle cx="200" cy="200" r="30" fill="#0f0f16" stroke="#2a2a35" stroke-width="1"/>
+        <circle cx="200" cy="200" r="12" fill="url(#metalGrad)" stroke="#5a5a68" stroke-width="1"/>
+        <circle cx="200" cy="200" r="4" fill="#c9a227"/>
+        
+        <!-- Spokes -->
+        <g stroke="#2a2a35" stroke-width="2" opacity="0.6">
+          <line x1="200" y1="160" x2="200" y2="60"/>
+          <line x1="200" y1="240" x2="200" y2="340"/>
+          <line x1="160" y1="200" x2="60" y2="200"/>
+          <line x1="240" y1="200" x2="340" y2="200"/>
+        </g>
+      </g>
+
+      <!-- Hammer indicator (top) -->
+      <g id="hammer">
+        <rect x="192" y="10" width="16" height="40" rx="4" fill="url(#metalGrad)" stroke="#4a4a58" stroke-width="1.5"/>
+        <rect x="196" y="14" width="8" height="6" rx="2" fill="#c9a227" opacity="0.8"/>
+      </g>
+
+      <!-- Trigger indicator (bottom) -->
+      <g id="trigger">
+        <circle cx="200" cy="370" r="8" fill="url(#metalGrad)" stroke="#4a4a58" stroke-width="1.5"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="hud">
+    <div class="stat">
+      <div class="stat-label">Ходы</div>
+      <div class="stat-value" id="turns">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Патроны</div>
+      <div class="stat-value" id="bullets">1/6</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Шанс</div>
+      <div class="stat-value danger" id="chance">16%</div>
+    </div>
+  </div>
+
+  <div class="difficulty" id="difficulty">
+    <button class="diff-btn active" data-bullets="1">1 пуля</button>
+    <button class="diff-btn" data-bullets="2">2 пули</button>
+    <button class="diff-btn" data-bullets="3">3 пули</button>
+  </div>
+
+  <button class="action-btn" id="actionBtn">
+    <span class="btn-text">Начать игру</span>
+  </button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ===== Configuration =====
+  const CHAMBERS = 6;
+  const CHAMBER_RADIUS = 95;
+  const CHAMBER_SIZE = 22;
+  const CENTER = 200;
+
+  // ===== DOM Elements =====
+  const $ = id => document.getElementById(id);
+  const revolver = $('revolver');
+  const cylinder = $('cylinder');
+  const chambersGroup = $('chambers');
+  const hammer = $('hammer');
+  const trigger = $('trigger');
+  const actionBtn = $('actionBtn');
+  const btnText = actionBtn.querySelector('.btn-text');
+  const turnsEl = $('turns');
+  const bulletsEl = $('bullets');
+  const chanceEl = $('chance');
+  const messageEl = $('message');
+  const flashEl = $('flash');
+  const difficultyEl = $('difficulty');
+  const diffBtns = difficultyEl.querySelectorAll('.diff-btn');
+
+  // ===== State =====
+  const state = {
+    bullets: new Set(),
+    bulletCount: 1,
+    currentChamber: 0,
+    rotation: 0,
+    turns: 0,
+    gameActive: false,
+    isAnimating: false,
+    chamberEls: [],
+    bulletEls: [],
+    firedChambers: new Set(),
+  };
+
+  // ===== Initialization =====
+  function createChambers() {
+    chambersGroup.innerHTML = '';
+    state.chamberEls = [];
+    state.bulletEls = [];
+
+    for (let i = 0; i < CHAMBERS; i++) {
+      const angle = (i / CHAMBERS) * Math.PI * 2 - Math.PI / 2;
+      const cx = CENTER + Math.cos(angle) * CHAMBER_RADIUS;
+      const cy = CENTER + Math.sin(angle) * CHAMBER_RADIUS;
+
+      // Chamber hole
+      const chamber = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      chamber.setAttribute('cx', cx);
+      chamber.setAttribute('cy', cy);
+      chamber.setAttribute('r', CHAMBER_SIZE);
+      chamber.setAttribute('class', 'chamber');
+      chambersGroup.appendChild(chamber);
+      state.chamberEls.push(chamber);
+
+      // Bullet (hidden by default)
+      const bullet = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      bullet.setAttribute('class', 'bullet');
+      bullet.style.transformOrigin = `${cx}px ${cy}px`;
+
+      const bulletBody = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      bulletBody.setAttribute('cx', cx);
+      bulletBody.setAttribute('cy', cy);
+      bulletBody.setAttribute('r', CHAMBER_SIZE * 0.65);
+      bulletBody.setAttribute('fill', 'url(#bulletGradient)');
+      bullet.appendChild(bulletBody);
+
+      const bulletTip = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      bulletTip.setAttribute('cx', cx);
+      bulletTip.setAttribute('cy', cy);
+      bulletTip.setAttribute('r', CHAMBER_SIZE * 0.3);
+      bulletTip.setAttribute('fill', '#ffe9a8');
+      bullet.appendChild(bulletTip);
+
+      chambersGroup.appendChild(bullet);
+      state.bulletEls.push(bullet);
+    }
+  }
+
+  function generateBullets() {
+    state.bullets.clear();
+    state.firedChambers.clear();
+    const positions = [];
+    for (let i = 0; i < CHAMBERS; i++) positions.push(i);
+    
+    // Fisher-Yates shuffle
+    for (let i = positions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [positions[i], positions[j]] = [positions[j], positions[i]];
+    }
+
+    for (let i = 0; i < state.bulletCount; i++) {
+      state.bullets.add(positions[i]);
+    }
+
+    // Reset visuals
+    state.chamberEls.forEach(el => {
+      el.classList.remove('spent');
+    });
+    state.bulletEls.forEach(el => {
+      el.classList.remove('visible', 'fired');
+    });
+  }
+
+  function updateHUD() {
+    turnsEl.textContent = state.turns;
+    const remaining = state.bulletCount - state.firedChambers.size;
+    bulletsEl.textContent = `${remaining}/${CHAMBERS}`;
+    
+    const remainingChambers = CHAMBERS - state.firedChambers.size;
+    const chance = remainingChambers > 0 
+      ? Math.round((remaining / remainingChambers) * 100) 
+      : 0;
+    chanceEl.textContent = `${chance}%`;
+    chanceEl.classList.toggle('danger', chance > 40);
+  }
+
+  // ===== Animation helpers =====
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function updateCylinderRotation(animate = true) {
+    // Convert current chamber to degrees (rotate cylinder so current chamber is at top)
+    const targetRotation = -(state.currentChamber / CHAMBERS) * 360;
+    // Keep continuous rotation for smooth animation
+    const normalizedTarget = state.rotation + ((targetRotation - state.rotation) % 360 + 540) % 360 - 180;
+    state.rotation = normalizedTarget;
+    
+    if (animate) {
+      cylinder.classList.add('spinning');
+    } else {
+      cylinder.classList.remove('spinning');
+    }
+    cylinder.style.transform = `rotate(${state.rotation}deg)`;
+  }
+
+  function spinCylinder() {
+    // Random full spins + random offset for realism
+    const extraSpins = 3 + Math.floor(Math.random() * 3);
+    const randomOffset = Math.floor(Math.random() * 360);
+    state.rotation += extraSpins * 360 + randomOffset;
+    
+    cylinder.classList.add('spinning');
+    cylinder.style.transform = `rotate(${state.rotation}deg)`;
+    
+    return sleep(850);
+  }
+
+  function fireChamber() {
+    const idx = state.currentChamber;
+    const chamber = state.chamberEls[idx];
+    chamber.classList.add('spent');
+    
+    // If there's a bullet, show it and fire
+    if (state.bullets.has(idx)) {
+      const bulletEl = state.bulletEls[idx];
+      bulletEl.classList.add('visible');
+      
+      // Trigger flash
+      flashEl.classList.remove('active');
+      void flashEl.offsetWidth;
+      flashEl.classList.add('active');
+      
+      // Recoil
+      revolver.classList.add('shake');
+      setTimeout(() => revolver.classList.remove('shake'), 500);
+      
+      setTimeout(() => {
+        bulletEl.classList.remove('visible');
+        bulletEl.classList.add('fired');
+        setTimeout(() => bulletEl.classList.remove('fired'), 400);
+      }, 50);
+      
+      state.firedChambers.add(idx);
+      spawnParticles(idx, true);
+      return true;
+    }
+    
+    // Click
+    revolver.classList.add('clicking');
+    setTimeout(() => revolver.classList.remove('clicking'), 250);
+    spawnParticles(idx, false);
+    return false;
+  }
+
+  function spawnParticles(chamberIdx, isExplosion) {
+    const angle = (chamberIdx / CHAMBERS) * Math.PI * 2 - Math.PI / 2;
+    const stageRect = revolver.getBoundingClientRect();
+    const cx = stageRect.left + stageRect.width / 2;
+    const cy = stageRect.top + stageRect.height / 2;
+    
+    const count = isExplosion ? 40 : 8;
+    
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      
+      const size = isExplosion ? 2 + Math.random() * 4 : 1 + Math.random() * 2;
+      const color = isExplosion 
+        ? ['#ff5252', '#e6c158', '#ff9800', '#fff'][Math.floor(Math.random() * 4)]
+        : ['#8a8a94', '#c9a227'][Math.floor(Math.random() * 2)];
+      
+      p.style.cssText = `
+        position: fixed;
+        left: ${cx}px;
+        top: ${cy}px;
+        width: ${size}px;
+        height: ${size}px;
+        background: ${color};
+        box-shadow: 0 0 ${size * 2}px ${color};
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 60;
+      `;
+      document.body.appendChild(p);
+      
+      const baseAngle = angle + (Math.random() - 0.5) * (isExplosion ? Math.PI * 2 : 0.6);
+      const velocity = isExplosion 
+        ? 100 + Math.random() * 250 
+        : 30 + Math.random() * 50;
+      const vx = Math.cos(baseAngle) * velocity;
+      const vy = Math.sin(baseAngle) * velocity;
+      const duration = isExplosion ? 600 + Math.random() * 600 : 300 + Math.random() * 300;
+      
+      p.animate([
+        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${vx}px), calc(-50% + ${vy}px)) scale(0)`, opacity: 0 }
+      ], {
+        duration,
+        easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)'
+      }).onfinish = () => p.remove();
+    }
+  }
+
+  function showMessage(text, type) {
+    messageEl.textContent = text;
+    messageEl.className = `message ${type}`;
+    void messageEl.offsetWidth;
+    messageEl.classList.add('show');
+  }
+
+  // ===== Game Logic =====
+  async function pullTrigger() {
+    if (!state.gameActive || state.isAnimating) return;
+    
+    state.isAnimating = true;
+    actionBtn.disabled = true;
+    
+    try {
+      // Spin cylinder
+      await spinCylinder();
+      
+      // Fire current chamber
+      const isBullet = fireChamber();
+      
+      state.turns++;
+      updateHUD();
+      
+      // Wait for effects
+      await sleep(isBullet ? 700 : 400);
+      
+      if (isBullet) {
+        // Player "died"
+        state.gameActive = false;
+        showMessage('Выстрел', 'lose');
+        await sleep(1200);
+        endGame(false);
+        return;
+      }
+      
+      // Check win condition
+      if (state.firedChambers.size >= CHAMBERS) {
+        // All chambers fired without bullet -> impossible but safety
+        endGame(true);
+        return;
+      }
+      
+      // Check if all bullets fired
+      if (state.firedChambers.size === state.bulletCount) {
+        // All bullets fired (somehow survived) - win
+        state.gameActive = false;
+        showMessage('Победа', 'win');
+        await sleep(1200);
+        endGame(true);
+        return;
+      }
+      
+      // Move to next chamber
+      state.currentChamber = (state.currentChamber + 1) % CHAMBERS;
+      updateCylinderRotation();
+      
+      await sleep(300);
+      
+      // Check if current chamber already fired
+      let safety = 0;
+      while (state.firedChambers.has(state.currentChamber) && safety < CHAMBERS) {
+        state.currentChamber = (state.currentChamber + 1) % CHAMBERS;
+        safety++;
+      }
+      
+      updateHUD();
+      actionBtn.disabled = false;
+      btnText.textContent = 'Нажать на курок';
+      
+    } finally {
+      state.isAnimating = false;
+    }
+  }
+
+  function startGame() {
+    state.turns = 0;
+    state.currentChamber = 0;
+    state.rotation = 0;
+    state.firedChambers.clear();
+    state.gameActive = true;
+    
+    generateBullets();
+    updateCylinderRotation(false);
+    updateHUD();
+    
+    actionBtn.classList.add('danger');
+    btnText.textContent = 'Нажать на курок';
+    
+    diffBtns.forEach(btn => btn.disabled = true);
+  }
+
+  function endGame(won) {
+    state.gameActive = false;
+    actionBtn.classList.remove('danger');
+    actionBtn.disabled = false;
+    btnText.textContent = 'Играть снова';
+    diffBtns.forEach(btn => btn.disabled = false);
+    
+    if (won) {
+      actionBtn.style.borderColor = 'var(--accent)';
+    } else {
+      actionBtn.style.borderColor = 'var(--border)';
+    }
+  }
+
+  // ===== Event Listeners =====
+  actionBtn.addEventListener('click', () => {
+    if (state.isAnimating) return;
+    
+    if (!state.gameActive) {
+      startGame();
+      // Auto-pull after short delay for smooth experience
+      setTimeout(() => {
+        if (state.gameActive && !state.isAnimating) {
+          pullTrigger();
+        }
+      }, 200);
+    } else {
+      pullTrigger();
+    }
+  });
+
+  diffBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (state.gameActive) return;
+      diffBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.bulletCount = parseInt(btn.dataset.bullets, 10);
+      updateHUD();
+    });
+  });
+
+  // Keyboard support
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      actionBtn.click();
+    }
+  });
+
+  // ===== Init =====
+  createChambers();
+  generateBullets();
+  updateCylinderRotation(false);
+  updateHUD();
+})();
+</script>
+</body>
+</html>
