@@ -3,379 +3,526 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Russian Roulette</title>
+<title>RUSSIAN ROULETTE — Холод</title>
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
-    --bg-primary: #0a0a0f;
-    --bg-secondary: #12121a;
-    --bg-tertiary: #1a1a24;
-    --accent: #c9a227;
-    --accent-glow: #e6c158;
-    --danger: #d32f2f;
-    --danger-glow: #ff5252;
-    --text-primary: #e8e8ec;
-    --text-secondary: #8a8a94;
-    --border: #2a2a35;
+    --bg-0: #050508;
+    --bg-1: #0a0a10;
+    --bg-2: #10101a;
+    --bg-3: #181824;
+    --ice: #6b8cae;
+    --ice-glow: #a8c8e8;
+    --gold: #b89840;
+    --danger: #8b1a1a;
+    --danger-bright: #ff2a2a;
+    --text-0: #d8d8e0;
+    --text-1: #6a6a7a;
+    --text-2: #3a3a4a;
+    --border: #1a1a28;
+    --border-lit: #2a2a40;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
   }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    min-height: 100vh;
+    font-family: 'Courier New', 'SF Mono', monospace;
+    background: var(--bg-0);
+    color: var(--text-0);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    position: relative;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    position: relative;
+    transition: background 0.8s ease, filter 0.3s ease;
   }
 
-  /* Ambient background */
+  /* Vignette always */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background: 
-      radial-gradient(ellipse at 50% 0%, rgba(201, 162, 39, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 100%, rgba(211, 47, 47, 0.05) 0%, transparent 50%);
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%);
     pointer-events: none;
-    z-index: 0;
+    z-index: 100;
   }
 
+  /* Grain */
   body::after {
     content: '';
     position: fixed;
+    inset: -50%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 101;
+    animation: grain 8s steps(6) infinite;
+  }
+
+  @keyframes grain {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-3%, -3%); }
+    30% { transform: translate(2%, -5%); }
+    50% { transform: translate(-4%, 3%); }
+    70% { transform: translate(3%, 4%); }
+    90% { transform: translate(-2%, -2%); }
+  }
+
+  /* Atmosphere layers */
+  .atmos {
+    position: fixed;
     inset: 0;
-    background-image: 
-      linear-gradient(rgba(201, 162, 39, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(201, 162, 39, 0.02) 1px, transparent 1px);
-    background-size: 60px 60px;
     pointer-events: none;
     z-index: 0;
-    mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
-    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+    opacity: 1;
+    transition: opacity 0.6s;
+  }
+
+  .atmos.blood {
+    background:
+      radial-gradient(ellipse at 50% 40%, rgba(139, 26, 26, 0.15) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 100%, rgba(60, 0, 0, 0.4) 0%, transparent 70%);
+    opacity: 0;
+  }
+
+  body.danger .atmos.blood { opacity: 1; }
+
+  body.danger::before {
+    background: radial-gradient(ellipse at center, transparent 20%, rgba(30,0,0,0.9) 100%);
+  }
+
+  /* Heartbeat pulse on body when tense */
+  body.tense {
+    animation: heartPulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes heartPulse {
+    0%, 100% { filter: brightness(1); }
+    15% { filter: brightness(1.08); }
+    30% { filter: brightness(1); }
+  }
+
+  /* Screen shake on shot */
+  body.shot {
+    animation: bodyShake 0.6s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  @keyframes bodyShake {
+    10%, 90% { transform: translate(-3px, 2px); }
+    20%, 80% { transform: translate(6px, -4px); }
+    30%, 50%, 70% { transform: translate(-10px, 3px); }
+    40%, 60% { transform: translate(10px, -2px); }
   }
 
   .container {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 32px;
-    padding: 24px;
+    gap: 20px;
+    padding: 20px;
     width: 100%;
-    max-width: 640px;
+    max-width: 620px;
+    max-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    width: 100%;
   }
 
   .title {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 8px;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 10px;
     text-transform: uppercase;
-    color: var(--text-secondary);
-    text-align: center;
-    opacity: 0;
-    animation: fadeIn 1s ease 0.2s forwards;
+    color: var(--text-1);
+    margin-bottom: 4px;
   }
 
-  .title span {
-    color: var(--accent);
-    text-shadow: 0 0 20px rgba(201, 162, 39, 0.5);
+  .title strong {
+    color: var(--gold);
+    font-weight: 700;
+    text-shadow: 0 0 30px rgba(184, 152, 64, 0.4);
   }
 
-  @keyframes fadeIn {
-    to { opacity: 1; }
+  .subtitle {
+    font-size: 9px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--text-2);
+    opacity: 0.7;
   }
 
-  /* Revolver stage */
+  /* Stage */
   .stage {
     position: relative;
-    width: min(90vw, 420px);
-    height: min(90vw, 420px);
+    width: min(82vw, 380px);
+    height: min(82vw, 380px);
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0;
-    animation: fadeIn 1s ease 0.4s forwards;
+    flex-shrink: 0;
   }
 
   .stage::before {
     content: '';
     position: absolute;
-    inset: -10%;
-    background: radial-gradient(circle, rgba(201, 162, 39, 0.06) 0%, transparent 60%);
+    inset: -20%;
+    background: radial-gradient(circle, rgba(107, 140, 174, 0.06) 0%, transparent 55%);
     border-radius: 50%;
-    animation: pulse 3s ease-in-out infinite;
+    animation: breathe 4s ease-in-out infinite;
   }
 
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 0.6; }
-    50% { transform: scale(1.08); opacity: 1; }
+  body.danger .stage::before {
+    background: radial-gradient(circle, rgba(139, 26, 26, 0.18) 0%, transparent 55%);
+    animation-duration: 1.2s;
+  }
+
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+  }
+
+  /* Crosshair overlay */
+  .crosshair {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: 5;
+  }
+
+  body.danger .crosshair { opacity: 0.4; }
+
+  .crosshair::before, .crosshair::after {
+    content: '';
+    position: absolute;
+    background: var(--danger-bright);
+    box-shadow: 0 0 10px rgba(255, 42, 42, 0.6);
+  }
+
+  .crosshair::before {
+    top: 50%; left: 0; right: 0; height: 1px;
+    transform: translateY(-50%);
+  }
+
+  .crosshair::after {
+    left: 50%; top: 0; bottom: 0; width: 1px;
+    transform: translateX(-50%);
   }
 
   .revolver {
     position: relative;
     width: 100%;
     height: 100%;
-    filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.6));
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 15px 50px rgba(0, 0, 0, 0.9));
+    transition: filter 0.4s;
+  }
+
+  body.danger .revolver {
+    filter: drop-shadow(0 0 40px rgba(139, 26, 26, 0.5)) drop-shadow(0 15px 50px rgba(0, 0, 0, 0.9));
   }
 
   .revolver.shake {
-    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+    animation: recoilShake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  @keyframes recoilShake {
+    10%, 90% { transform: translate(-3px, 2px) rotate(-1deg); }
+    20%, 80% { transform: translate(6px, -3px) rotate(1.5deg); }
+    30%, 50%, 70% { transform: translate(-8px, 3px) rotate(-2deg); }
+    40%, 60% { transform: translate(8px, -2px) rotate(2deg); }
   }
 
   .revolver.clicking {
-    animation: recoil 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: clickRecoil 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  @keyframes shake {
-    10%, 90% { transform: translate(-2px, 1px) rotate(-1deg); }
-    20%, 80% { transform: translate(4px, -2px) rotate(1.5deg); }
-    30%, 50%, 70% { transform: translate(-6px, 2px) rotate(-2deg); }
-    40%, 60% { transform: translate(6px, -1px) rotate(2deg); }
-  }
-
-  @keyframes recoil {
+  @keyframes clickRecoil {
     0% { transform: scale(1); }
-    30% { transform: scale(0.96) rotate(-2deg); }
-    60% { transform: scale(1.02) rotate(1deg); }
+    40% { transform: scale(0.97) rotate(-1.5deg); }
     100% { transform: scale(1) rotate(0); }
   }
 
   .cylinder {
     transform-origin: 50% 50%;
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .cylinder.spinning {
-    transition: transform 0.8s cubic-bezier(0.15, 0.85, 0.35, 1);
+    transition: transform 1.4s cubic-bezier(0.15, 0.85, 0.35, 1);
   }
 
-  .chamber {
-    fill: #0f0f16;
-    stroke: #2a2a35;
-    stroke-width: 1.5;
-  }
+  .chamber { transition: fill 0.3s, stroke 0.3s; }
 
   .chamber.spent {
-    fill: #1a0f0f;
-    stroke: #3d1a1a;
+    fill: #1a0808;
+    stroke: #4a1515;
   }
 
   .bullet {
-    fill: url(#bulletGradient);
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s;
+    filter: drop-shadow(0 0 6px rgba(184, 152, 64, 0.8));
   }
 
-  .bullet.visible {
-    opacity: 1;
-  }
+  .bullet.visible { opacity: 1; }
 
   .bullet.fired {
-    opacity: 0;
-    animation: fireBullet 0.4s ease-out forwards;
+    animation: bulletFire 0.5s ease-out forwards;
   }
 
-  @keyframes fireBullet {
+  @keyframes bulletFire {
     0% { opacity: 1; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.6); }
-    100% { opacity: 0; transform: scale(0.3); }
+    40% { opacity: 1; transform: scale(1.8); filter: drop-shadow(0 0 30px rgba(255,200,80,1)); }
+    100% { opacity: 0; transform: scale(0.2); }
   }
 
   /* Flash */
   .flash {
     position: fixed;
     inset: 0;
-    background: radial-gradient(circle at center, rgba(255, 220, 120, 0.9) 0%, rgba(255, 100, 50, 0.6) 30%, transparent 70%);
     pointer-events: none;
+    z-index: 90;
     opacity: 0;
-    z-index: 100;
   }
 
   .flash.active {
-    animation: flashAnim 0.5s ease-out;
+    animation: flashAnim 0.6s ease-out;
+    background: radial-gradient(circle at 50% 45%, rgba(255, 240, 200, 0.95) 0%, rgba(255, 80, 40, 0.7) 25%, rgba(120, 0, 0, 0.4) 50%, transparent 75%);
   }
 
   @keyframes flashAnim {
     0% { opacity: 0; }
-    15% { opacity: 1; }
+    8% { opacity: 1; }
     100% { opacity: 0; }
   }
 
   /* HUD */
   .hud {
-    display: flex;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
     width: 100%;
-    opacity: 0;
-    animation: fadeIn 1s ease 0.6s forwards;
   }
 
   .stat {
-    flex: 1;
-    background: var(--bg-secondary);
+    background: var(--bg-1);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 10px 8px;
     text-align: center;
     position: relative;
     overflow: hidden;
+    transition: all 0.3s;
   }
 
   .stat::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0; left: 0; right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.5;
+    background: linear-gradient(90deg, transparent, var(--ice), transparent);
+    opacity: 0.4;
+  }
+
+  body.danger .stat::before {
+    background: linear-gradient(90deg, transparent, var(--danger-bright), transparent);
+    opacity: 0.8;
+    animation: statPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes statPulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 0.3; }
   }
 
   .stat-label {
-    font-size: 10px;
+    font-size: 8px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
+    color: var(--text-2);
+    margin-bottom: 4px;
   }
 
   .stat-value {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text-0);
     font-variant-numeric: tabular-nums;
+    font-family: 'Courier New', monospace;
   }
 
+  .stat-value.ice { color: var(--ice-glow); }
   .stat-value.danger {
-    color: var(--danger-glow);
-    text-shadow: 0 0 15px rgba(255, 82, 82, 0.4);
+    color: var(--danger-bright);
+    text-shadow: 0 0 15px rgba(255, 42, 42, 0.6);
   }
+  .stat-value.gold { color: var(--gold); }
 
   /* Action button */
   .action-btn {
     width: 100%;
-    padding: 20px;
-    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    color: var(--text-primary);
+    padding: 18px;
+    background: var(--bg-1);
+    border: 1px solid var(--border-lit);
+    border-radius: 10px;
+    color: var(--text-0);
     font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 6px;
     text-transform: uppercase;
     cursor: pointer;
     position: relative;
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    opacity: 0;
-    animation: fadeIn 1s ease 0.8s forwards;
   }
 
   .action-btn::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, var(--accent), var(--accent-glow));
-    opacity: 0;
-    transition: opacity 0.3s;
-    z-index: -1;
-  }
-
-  .action-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 40px rgba(201, 162, 39, 0.2);
+    background: linear-gradient(90deg, transparent, rgba(107, 140, 174, 0.15), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s;
   }
 
   .action-btn:hover:not(:disabled)::before {
-    opacity: 0.15;
+    transform: translateX(100%);
+  }
+
+  .action-btn:hover:not(:disabled) {
+    border-color: var(--ice);
+    box-shadow: 0 0 30px rgba(107, 140, 174, 0.2);
+    color: var(--ice-glow);
   }
 
   .action-btn:active:not(:disabled) {
-    transform: translateY(0);
+    transform: scale(0.98);
   }
 
   .action-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.3;
     cursor: not-allowed;
-    animation: none;
   }
 
-  .action-btn.danger {
+  .action-btn.armed {
     border-color: var(--danger);
+    color: #ff9090;
+    box-shadow: 0 0 25px rgba(139, 26, 26, 0.4), inset 0 0 20px rgba(139, 26, 26, 0.1);
   }
 
-  .action-btn.danger:hover:not(:disabled) {
-    box-shadow: 0 10px 40px rgba(211, 47, 47, 0.3);
+  .action-btn.armed:hover:not(:disabled) {
+    box-shadow: 0 0 40px rgba(255, 42, 42, 0.5), inset 0 0 30px rgba(139, 26, 26, 0.2);
+    border-color: var(--danger-bright);
+    color: #ffb0b0;
   }
 
-  .action-btn.danger::before {
-    background: linear-gradient(135deg, var(--danger), var(--danger-glow));
+  .action-btn span { position: relative; z-index: 1; }
+
+  /* Difficulty */
+  .difficulty {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
   }
 
-  .action-btn .btn-text {
-    position: relative;
-    z-index: 1;
+  .diff-btn {
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s;
   }
 
-  /* Message */
+  .diff-btn:hover:not(:disabled) {
+    color: var(--text-1);
+    border-color: var(--border-lit);
+  }
+
+  .diff-btn.active {
+    background: rgba(107, 140, 174, 0.08);
+    border-color: var(--ice);
+    color: var(--ice-glow);
+  }
+
+  .diff-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+  /* Message overlay */
   .message {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: min(10vw, 56px);
-    font-weight: 800;
-    letter-spacing: 6px;
-    text-transform: uppercase;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
     pointer-events: none;
     opacity: 0;
-    z-index: 50;
+    z-index: 95;
+    padding: 20px;
     text-align: center;
-    white-space: nowrap;
   }
 
-  .message.show {
-    animation: messageAnim 2.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  .message.show { animation: msgAnim 2.8s ease forwards; }
+
+  .message-title {
+    font-size: clamp(32px, 12vw, 72px);
+    font-weight: 900;
+    letter-spacing: 12px;
+    text-transform: uppercase;
+    line-height: 1;
   }
 
-  .message.win {
-    color: var(--accent-glow);
-    text-shadow: 
-      0 0 20px rgba(201, 162, 39, 0.8),
-      0 0 60px rgba(201, 162, 39, 0.4),
-      0 0 100px rgba(201, 162, 39, 0.2);
+  .message-sub {
+    font-size: 11px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--text-1);
   }
 
-  .message.lose {
-    color: var(--danger-glow);
-    text-shadow: 
-      0 0 20px rgba(255, 82, 82, 0.8),
-      0 0 60px rgba(255, 82, 82, 0.4),
-      0 0 100px rgba(255, 82, 82, 0.2);
+  .message.win .message-title {
+    color: var(--ice-glow);
+    text-shadow: 0 0 30px rgba(168, 200, 232, 0.9), 0 0 80px rgba(107, 140, 174, 0.5);
   }
 
-  @keyframes messageAnim {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-    30% { transform: translate(-50%, -50%) scale(1); }
-    80% { opacity: 1; }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+  .message.lose .message-title {
+    color: var(--danger-bright);
+    text-shadow: 0 0 30px rgba(255, 42, 42, 0.9), 0 0 80px rgba(139, 26, 26, 0.6);
+    animation: glitch 0.15s steps(2) 4;
+  }
+
+  @keyframes glitch {
+    0% { transform: translate(0); }
+    25% { transform: translate(-3px, 2px); }
+    50% { transform: translate(3px, -2px); }
+    75% { transform: translate(-2px, -1px); }
+    100% { transform: translate(0); }
+  }
+
+  @keyframes msgAnim {
+    0% { opacity: 0; transform: scale(0.85); }
+    10% { opacity: 1; transform: scale(1); }
+    85% { opacity: 1; }
+    100% { opacity: 0; transform: scale(1.05); }
   }
 
   /* Particles */
@@ -383,158 +530,147 @@
     position: fixed;
     pointer-events: none;
     border-radius: 50%;
-    z-index: 60;
+    z-index: 80;
   }
 
-  /* Difficulty selector */
-  .difficulty {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-    opacity: 0;
-    animation: fadeIn 1s ease 0.7s forwards;
+  /* Blood drip */
+  .blood-drip {
+    position: fixed;
+    top: 0;
+    width: 2px;
+    background: linear-gradient(180deg, #8b1a1a, transparent);
+    z-index: 99;
+    pointer-events: none;
+    opacity: 0.8;
   }
 
-  .diff-btn {
-    flex: 1;
-    padding: 12px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text-secondary);
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.25s ease;
+  @media (max-height: 700px) {
+    .container { gap: 12px; padding: 12px; }
+    .stage { width: min(65vh, 300px); height: min(65vh, 300px); }
+    .stat { padding: 6px; }
+    .stat-value { font-size: 15px; }
+    .action-btn { padding: 14px; }
   }
 
-  .diff-btn:hover:not(:disabled) {
-    color: var(--text-primary);
-    border-color: var(--accent);
-  }
-
-  .diff-btn.active {
-    background: linear-gradient(135deg, rgba(201, 162, 39, 0.15), rgba(201, 162, 39, 0.05));
-    border-color: var(--accent);
-    color: var(--accent-glow);
-  }
-
-  .diff-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  /* Responsive */
   @media (max-width: 480px) {
-    .container { gap: 24px; padding: 16px; }
-    .stat { padding: 12px; }
-    .stat-value { font-size: 18px; }
-    .action-btn { padding: 16px; font-size: 12px; letter-spacing: 3px; }
+    .title { letter-spacing: 6px; font-size: 10px; }
+    .stat-label { font-size: 7px; }
+    .stat-value { font-size: 14px; }
+    .action-btn { font-size: 10px; letter-spacing: 4px; padding: 15px; }
   }
 </style>
 </head>
 <body>
 
+<div class="atmos blood"></div>
 <div class="flash" id="flash"></div>
-<div class="message" id="message"></div>
+
+<div class="message" id="message">
+  <div class="message-title" id="msgTitle"></div>
+  <div class="message-sub" id="msgSub"></div>
+</div>
 
 <div class="container">
-  <div class="title">Russian <span>Roulette</span></div>
+  <div class="header">
+    <div class="title">RUSSIAN <strong>ROULETTE</strong></div>
+    <div class="subtitle">один патрон · шесть камер</div>
+  </div>
 
   <div class="stage">
+    <div class="crosshair"></div>
     <svg class="revolver" id="revolver" viewBox="0 0 400 400">
       <defs>
-        <radialGradient id="cylinderGrad" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#2a2a35"/>
-          <stop offset="70%" stop-color="#1a1a24"/>
-          <stop offset="100%" stop-color="#0f0f16"/>
+        <radialGradient id="cylGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#1a1a26"/>
+          <stop offset="60%" stop-color="#0f0f18"/>
+          <stop offset="100%" stop-color="#050508"/>
         </radialGradient>
-        <linearGradient id="bulletGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#e6c158"/>
-          <stop offset="50%" stop-color="#c9a227"/>
-          <stop offset="100%" stop-color="#8a6f1a"/>
+        <radialGradient id="pinGrad" cx="40%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#3a3a50"/>
+          <stop offset="100%" stop-color="#0a0a12"/>
+        </radialGradient>
+        <linearGradient id="bulletGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffe9a8"/>
+          <stop offset="40%" stop-color="#b89840"/>
+          <stop offset="100%" stop-color="#5a4820"/>
         </linearGradient>
         <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#3a3a48"/>
-          <stop offset="50%" stop-color="#1a1a24"/>
-          <stop offset="100%" stop-color="#2a2a35"/>
+          <stop offset="0%" stop-color="#2a2a40"/>
+          <stop offset="50%" stop-color="#0a0a14"/>
+          <stop offset="100%" stop-color="#1a1a28"/>
         </linearGradient>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="3" result="blur"/>
-          <feMerge>
-            <feMergeNode in="blur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
+        <filter id="innerGlow">
+          <feGaussianBlur stdDeviation="2" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
 
-      <!-- Outer ring -->
-      <circle cx="200" cy="200" r="180" fill="none" stroke="#1a1a24" stroke-width="2"/>
-      <circle cx="200" cy="200" r="170" fill="none" stroke="#2a2a35" stroke-width="1" opacity="0.5"/>
+      <!-- Outer decorative rings -->
+      <circle cx="200" cy="200" r="190" fill="none" stroke="#14141f" stroke-width="1"/>
+      <circle cx="200" cy="200" r="175" fill="none" stroke="#1a1a28" stroke-width="0.5" stroke-dasharray="2 4"/>
 
-      <!-- Cylinder group -->
+      <!-- Rotating cylinder -->
       <g class="cylinder" id="cylinder">
-        <!-- Cylinder body -->
-        <circle cx="200" cy="200" r="150" fill="url(#cylinderGrad)" stroke="#3a3a48" stroke-width="2"/>
-        <circle cx="200" cy="200" r="140" fill="none" stroke="#2a2a35" stroke-width="1"/>
+        <circle cx="200" cy="200" r="155" fill="url(#cylGrad)" stroke="#2a2a40" stroke-width="1.5"/>
+        <circle cx="200" cy="200" r="145" fill="none" stroke="#1a1a28" stroke-width="1"/>
         
-        <!-- Chambers -->
         <g id="chambers"></g>
 
-        <!-- Center pin -->
-        <circle cx="200" cy="200" r="40" fill="url(#metalGrad)" stroke="#4a4a58" stroke-width="2"/>
-        <circle cx="200" cy="200" r="30" fill="#0f0f16" stroke="#2a2a35" stroke-width="1"/>
-        <circle cx="200" cy="200" r="12" fill="url(#metalGrad)" stroke="#5a5a68" stroke-width="1"/>
-        <circle cx="200" cy="200" r="4" fill="#c9a227"/>
-        
+        <!-- Center -->
+        <circle cx="200" cy="200" r="42" fill="url(#pinGrad)" stroke="#2a2a40" stroke-width="1.5"/>
+        <circle cx="200" cy="200" r="32" fill="#050508" stroke="#1a1a28" stroke-width="1"/>
+        <circle cx="200" cy="200" r="14" fill="url(#pinGrad)" stroke="#3a3a50" stroke-width="1"/>
+        <circle cx="200" cy="200" r="3" fill="#b89840" filter="url(#innerGlow)"/>
+
         <!-- Spokes -->
-        <g stroke="#2a2a35" stroke-width="2" opacity="0.6">
-          <line x1="200" y1="160" x2="200" y2="60"/>
-          <line x1="200" y1="240" x2="200" y2="340"/>
-          <line x1="160" y1="200" x2="60" y2="200"/>
-          <line x1="240" y1="200" x2="340" y2="200"/>
+        <g stroke="#1a1a28" stroke-width="1.5" opacity="0.5">
+          <line x1="200" y1="158" x2="200" y2="55"/>
+          <line x1="200" y1="242" x2="200" y2="345"/>
+          <line x1="158" y1="200" x2="55" y2="200"/>
+          <line x1="242" y1="200" x2="345" y2="200"/>
         </g>
       </g>
 
-      <!-- Hammer indicator (top) -->
+      <!-- Hammer -->
       <g id="hammer">
-        <rect x="192" y="10" width="16" height="40" rx="4" fill="url(#metalGrad)" stroke="#4a4a58" stroke-width="1.5"/>
-        <rect x="196" y="14" width="8" height="6" rx="2" fill="#c9a227" opacity="0.8"/>
+        <rect x="190" y="5" width="20" height="38" rx="3" fill="url(#metalGrad)" stroke="#2a2a40" stroke-width="1"/>
+        <rect x="195" y="10" width="10" height="5" rx="1" fill="#b89840" opacity="0.6"/>
       </g>
 
-      <!-- Trigger indicator (bottom) -->
+      <!-- Trigger guard -->
       <g id="trigger">
-        <circle cx="200" cy="370" r="8" fill="url(#metalGrad)" stroke="#4a4a58" stroke-width="1.5"/>
+        <circle cx="200" cy="375" r="6" fill="url(#pinGrad)" stroke="#2a2a40" stroke-width="1"/>
       </g>
     </svg>
   </div>
 
   <div class="hud">
     <div class="stat">
+      <div class="stat-label">Серия</div>
+      <div class="stat-value ice" id="streak">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Рекорд</div>
+      <div class="stat-value gold" id="best">0</div>
+    </div>
+    <div class="stat">
       <div class="stat-label">Ходы</div>
       <div class="stat-value" id="turns">0</div>
     </div>
     <div class="stat">
-      <div class="stat-label">Патроны</div>
-      <div class="stat-value" id="bullets">1/6</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Шанс</div>
+      <div class="stat-label">Риск</div>
       <div class="stat-value danger" id="chance">16%</div>
     </div>
   </div>
 
   <div class="difficulty" id="difficulty">
-    <button class="diff-btn active" data-bullets="1">1 пуля</button>
-    <button class="diff-btn" data-bullets="2">2 пули</button>
-    <button class="diff-btn" data-bullets="3">3 пули</button>
+    <button class="diff-btn active" data-bullets="1">1 / 6</button>
+    <button class="diff-btn" data-bullets="2">2 / 6</button>
+    <button class="diff-btn" data-bullets="3">3 / 6</button>
   </div>
 
   <button class="action-btn" id="actionBtn">
-    <span class="btn-text">Начать игру</span>
+    <span id="btnText">Взвести курок</span>
   </button>
 </div>
 
@@ -542,28 +678,115 @@
 (() => {
   'use strict';
 
-  // ===== Configuration =====
   const CHAMBERS = 6;
-  const CHAMBER_RADIUS = 95;
+  const CHAMBER_RADIUS = 100;
   const CHAMBER_SIZE = 22;
   const CENTER = 200;
+  const STORAGE_KEY = 'roulette_best';
 
-  // ===== DOM Elements =====
   const $ = id => document.getElementById(id);
   const revolver = $('revolver');
   const cylinder = $('cylinder');
   const chambersGroup = $('chambers');
-  const hammer = $('hammer');
-  const trigger = $('trigger');
   const actionBtn = $('actionBtn');
-  const btnText = actionBtn.querySelector('.btn-text');
+  const btnText = $('btnText');
+  const streakEl = $('streak');
+  const bestEl = $('best');
   const turnsEl = $('turns');
-  const bulletsEl = $('bullets');
   const chanceEl = $('chance');
   const messageEl = $('message');
+  const msgTitle = $('msgTitle');
+  const msgSub = $('msgSub');
   const flashEl = $('flash');
-  const difficultyEl = $('difficulty');
-  const diffBtns = difficultyEl.querySelectorAll('.diff-btn');
+  const diffBtns = document.querySelectorAll('.diff-btn');
+
+  // ===== Audio (Web Audio API) =====
+  let audioCtx = null;
+  let heartbeatInterval = null;
+
+  function initAudio() {
+    if (audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { /* no audio */ }
+  }
+
+  function playTone(freq, duration, type = 'sine', volume = 0.08, slideTo = null) {
+    if (!audioCtx) return;
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      if (slideTo) {
+        osc.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime + duration);
+      }
+      gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+  }
+
+  function playClick() {
+    playTone(280, 0.06, 'square', 0.06, 180);
+    playTone(900, 0.03, 'sine', 0.04);
+  }
+
+  function playSpin() {
+    playTone(120, 0.8, 'sawtooth', 0.03, 260);
+    playTone(400, 0.8, 'sine', 0.02, 200);
+  }
+
+  function playShot() {
+    if (!audioCtx) return;
+    try {
+      // Noise burst
+      const bufferSize = audioCtx.sampleRate * 0.6;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+      }
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 2000;
+      noise.connect(filter).connect(noiseGain).connect(audioCtx.destination);
+      noise.start();
+      
+      // Low boom
+      playTone(80, 0.5, 'sine', 0.3, 30);
+    } catch (e) {}
+  }
+
+  function playWin() {
+    playTone(523, 0.15, 'sine', 0.08);
+    setTimeout(() => playTone(659, 0.15, 'sine', 0.08), 100);
+    setTimeout(() => playTone(784, 0.3, 'sine', 0.08), 200);
+  }
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    const beat = () => {
+      playTone(60, 0.15, 'sine', 0.05);
+      setTimeout(() => playTone(55, 0.15, 'sine', 0.04), 180);
+    };
+    beat();
+    heartbeatInterval = setInterval(beat, 1100);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  }
 
   // ===== State =====
   const state = {
@@ -572,6 +795,8 @@
     currentChamber: 0,
     rotation: 0,
     turns: 0,
+    streak: 0,
+    best: parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10),
     gameActive: false,
     isAnimating: false,
     chamberEls: [],
@@ -579,7 +804,7 @@
     firedChambers: new Set(),
   };
 
-  // ===== Initialization =====
+  // ===== Init chambers =====
   function createChambers() {
     chambersGroup.innerHTML = '';
     state.chamberEls = [];
@@ -590,7 +815,6 @@
       const cx = CENTER + Math.cos(angle) * CHAMBER_RADIUS;
       const cy = CENTER + Math.sin(angle) * CHAMBER_RADIUS;
 
-      // Chamber hole
       const chamber = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       chamber.setAttribute('cx', cx);
       chamber.setAttribute('cy', cy);
@@ -599,304 +823,341 @@
       chambersGroup.appendChild(chamber);
       state.chamberEls.push(chamber);
 
-      // Bullet (hidden by default)
       const bullet = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       bullet.setAttribute('class', 'bullet');
       bullet.style.transformOrigin = `${cx}px ${cy}px`;
 
-      const bulletBody = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      bulletBody.setAttribute('cx', cx);
-      bulletBody.setAttribute('cy', cy);
-      bulletBody.setAttribute('r', CHAMBER_SIZE * 0.65);
-      bulletBody.setAttribute('fill', 'url(#bulletGradient)');
-      bullet.appendChild(bulletBody);
+      const body = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      body.setAttribute('cx', cx);
+      body.setAttribute('cy', cy);
+      body.setAttribute('r', CHAMBER_SIZE * 0.7);
+      body.setAttribute('fill', 'url(#bulletGrad)');
+      bullet.appendChild(body);
 
-      const bulletTip = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      bulletTip.setAttribute('cx', cx);
-      bulletTip.setAttribute('cy', cy);
-      bulletTip.setAttribute('r', CHAMBER_SIZE * 0.3);
-      bulletTip.setAttribute('fill', '#ffe9a8');
-      bullet.appendChild(bulletTip);
+      const tip = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      tip.setAttribute('cx', cx);
+      tip.setAttribute('cy', cy);
+      tip.setAttribute('r', CHAMBER_SIZE * 0.35);
+      tip.setAttribute('fill', '#ffe9a8');
+      tip.setAttribute('opacity', '0.7');
+      bullet.appendChild(tip);
 
       chambersGroup.appendChild(bullet);
       state.bulletEls.push(bullet);
     }
   }
 
+  // ===== Bullet generation =====
   function generateBullets() {
     state.bullets.clear();
     state.firedChambers.clear();
-    const positions = [];
-    for (let i = 0; i < CHAMBERS; i++) positions.push(i);
-    
-    // Fisher-Yates shuffle
+    const positions = Array.from({ length: CHAMBERS }, (_, i) => i);
     for (let i = positions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [positions[i], positions[j]] = [positions[j], positions[i]];
     }
-
     for (let i = 0; i < state.bulletCount; i++) {
       state.bullets.add(positions[i]);
     }
-
-    // Reset visuals
-    state.chamberEls.forEach(el => {
-      el.classList.remove('spent');
-    });
-    state.bulletEls.forEach(el => {
-      el.classList.remove('visible', 'fired');
-    });
+    state.chamberEls.forEach(el => el.classList.remove('spent'));
+    state.bulletEls.forEach(el => el.classList.remove('visible', 'fired'));
   }
 
+  // ===== HUD =====
   function updateHUD() {
-    turnsEl.textContent = state.turns;
     const remaining = state.bulletCount - state.firedChambers.size;
-    bulletsEl.textContent = `${remaining}/${CHAMBERS}`;
-    
     const remainingChambers = CHAMBERS - state.firedChambers.size;
-    const chance = remainingChambers > 0 
-      ? Math.round((remaining / remainingChambers) * 100) 
+    const chance = remainingChambers > 0
+      ? Math.round((remaining / remainingChambers) * 100)
       : 0;
+
+    streakEl.textContent = state.streak;
+    bestEl.textContent = state.best;
+    turnsEl.textContent = state.turns;
     chanceEl.textContent = `${chance}%`;
-    chanceEl.classList.toggle('danger', chance > 40);
+
+    // Danger state: when chance > 40% AND game active
+    const isDanger = state.gameActive && chance >= 40;
+    document.body.classList.toggle('danger', isDanger);
+    document.body.classList.toggle('tense', state.gameActive && chance >= 50);
+
+    if (isDanger && state.gameActive) {
+      startHeartbeat();
+    } else {
+      stopHeartbeat();
+    }
   }
 
-  // ===== Animation helpers =====
-  function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  // ===== Helpers =====
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   function updateCylinderRotation(animate = true) {
-    // Convert current chamber to degrees (rotate cylinder so current chamber is at top)
     const targetRotation = -(state.currentChamber / CHAMBERS) * 360;
-    // Keep continuous rotation for smooth animation
-    const normalizedTarget = state.rotation + ((targetRotation - state.rotation) % 360 + 540) % 360 - 180;
-    state.rotation = normalizedTarget;
+    // Shortest path rotation
+    const current = state.rotation;
+    const diff = ((targetRotation - current) % 360 + 540) % 360 - 180;
+    state.rotation = current + diff;
     
-    if (animate) {
-      cylinder.classList.add('spinning');
-    } else {
-      cylinder.classList.remove('spinning');
-    }
+    cylinder.classList.toggle('spinning', animate);
     cylinder.style.transform = `rotate(${state.rotation}deg)`;
   }
 
   function spinCylinder() {
-    // Random full spins + random offset for realism
-    const extraSpins = 3 + Math.floor(Math.random() * 3);
-    const randomOffset = Math.floor(Math.random() * 360);
-    state.rotation += extraSpins * 360 + randomOffset;
-    
+    const spins = 4 + Math.floor(Math.random() * 3);
+    const offset = Math.floor(Math.random() * 360);
+    state.rotation += spins * 360 + offset;
     cylinder.classList.add('spinning');
     cylinder.style.transform = `rotate(${state.rotation}deg)`;
-    
-    return sleep(850);
+    playSpin();
+    return sleep(1450);
   }
 
   function fireChamber() {
     const idx = state.currentChamber;
     const chamber = state.chamberEls[idx];
     chamber.classList.add('spent');
-    
-    // If there's a bullet, show it and fire
+
     if (state.bullets.has(idx)) {
       const bulletEl = state.bulletEls[idx];
       bulletEl.classList.add('visible');
-      
-      // Trigger flash
+
+      // Effects
       flashEl.classList.remove('active');
       void flashEl.offsetWidth;
       flashEl.classList.add('active');
-      
-      // Recoil
+
+      document.body.classList.add('shot');
+      setTimeout(() => document.body.classList.remove('shot'), 600);
+
       revolver.classList.add('shake');
       setTimeout(() => revolver.classList.remove('shake'), 500);
-      
+
+      playShot();
+
       setTimeout(() => {
         bulletEl.classList.remove('visible');
         bulletEl.classList.add('fired');
-        setTimeout(() => bulletEl.classList.remove('fired'), 400);
-      }, 50);
-      
+        setTimeout(() => bulletEl.classList.remove('fired'), 500);
+      }, 60);
+
       state.firedChambers.add(idx);
       spawnParticles(idx, true);
+      spawnBloodDrips();
       return true;
     }
-    
-    // Click
+
     revolver.classList.add('clicking');
-    setTimeout(() => revolver.classList.remove('clicking'), 250);
+    setTimeout(() => revolver.classList.remove('clicking'), 300);
+    playClick();
     spawnParticles(idx, false);
     return false;
   }
 
-  function spawnParticles(chamberIdx, isExplosion) {
-    const angle = (chamberIdx / CHAMBERS) * Math.PI * 2 - Math.PI / 2;
-    const stageRect = revolver.getBoundingClientRect();
-    const cx = stageRect.left + stageRect.width / 2;
-    const cy = stageRect.top + stageRect.height / 2;
-    
-    const count = isExplosion ? 40 : 8;
-    
+  function spawnParticles(chamberIdx, explosion) {
+    const angle = (chamberIdx / CHAMBERS) * Math.PI * 2 - Math.PI / 2 + (state.rotation * Math.PI) / 180;
+    const rect = revolver.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    const count = explosion ? 60 : 10;
     for (let i = 0; i < count; i++) {
       const p = document.createElement('div');
       p.className = 'particle';
-      
-      const size = isExplosion ? 2 + Math.random() * 4 : 1 + Math.random() * 2;
-      const color = isExplosion 
-        ? ['#ff5252', '#e6c158', '#ff9800', '#fff'][Math.floor(Math.random() * 4)]
-        : ['#8a8a94', '#c9a227'][Math.floor(Math.random() * 2)];
-      
+      const size = explosion ? 2 + Math.random() * 5 : 1 + Math.random() * 2;
+      const colors = explosion
+        ? ['#ff2a2a', '#ff9800', '#ffe9a8', '#8b1a1a', '#ffffff']
+        : ['#6a6a7a', '#3a3a4a', '#b89840'];
+      const color = colors[(Math.random() * colors.length) | 0];
       p.style.cssText = `
-        position: fixed;
-        left: ${cx}px;
-        top: ${cy}px;
-        width: ${size}px;
-        height: ${size}px;
-        background: ${color};
-        box-shadow: 0 0 ${size * 2}px ${color};
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 60;
+        left:${cx}px; top:${cy}px;
+        width:${size}px; height:${size}px;
+        background:${color};
+        box-shadow:0 0 ${size * 3}px ${color};
       `;
       document.body.appendChild(p);
-      
-      const baseAngle = angle + (Math.random() - 0.5) * (isExplosion ? Math.PI * 2 : 0.6);
-      const velocity = isExplosion 
-        ? 100 + Math.random() * 250 
-        : 30 + Math.random() * 50;
-      const vx = Math.cos(baseAngle) * velocity;
-      const vy = Math.sin(baseAngle) * velocity;
-      const duration = isExplosion ? 600 + Math.random() * 600 : 300 + Math.random() * 300;
-      
+
+      const a = angle + (Math.random() - 0.5) * (explosion ? Math.PI * 2 : 0.8);
+      const vel = explosion ? 150 + Math.random() * 350 : 40 + Math.random() * 80;
+      const vx = Math.cos(a) * vel;
+      const vy = Math.sin(a) * vel;
+      const dur = explosion ? 700 + Math.random() * 800 : 300 + Math.random() * 300;
+
       p.animate([
         { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
         { transform: `translate(calc(-50% + ${vx}px), calc(-50% + ${vy}px)) scale(0)`, opacity: 0 }
-      ], {
-        duration,
-        easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)'
-      }).onfinish = () => p.remove();
+      ], { duration: dur, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' })
+        .onfinish = () => p.remove();
     }
   }
 
-  function showMessage(text, type) {
-    messageEl.textContent = text;
+  function spawnBloodDrips() {
+    for (let i = 0; i < 6; i++) {
+      const drip = document.createElement('div');
+      drip.className = 'blood-drip';
+      drip.style.left = (Math.random() * 100) + 'vw';
+      drip.style.height = (30 + Math.random() * 120) + 'px';
+      drip.style.opacity = '0';
+      document.body.appendChild(drip);
+
+      drip.animate([
+        { opacity: 0, transform: 'translateY(-100%)' },
+        { opacity: 0.8, transform: 'translateY(0)' },
+        { opacity: 0.8, transform: 'translateY(0)' },
+        { opacity: 0, transform: 'translateY(0)' }
+      ], { duration: 2000 + Math.random() * 800, easing: 'ease-out' })
+        .onfinish = () => drip.remove();
+    }
+  }
+
+  function showMessage(title, sub, type) {
+    msgTitle.textContent = title;
+    msgSub.textContent = sub;
     messageEl.className = `message ${type}`;
     void messageEl.offsetWidth;
     messageEl.classList.add('show');
   }
 
-  // ===== Game Logic =====
+  // ===== Core gameplay =====
   async function pullTrigger() {
     if (!state.gameActive || state.isAnimating) return;
-    
     state.isAnimating = true;
     actionBtn.disabled = true;
-    
+
     try {
-      // Spin cylinder
       await spinCylinder();
-      
-      // Fire current chamber
-      const isBullet = fireChamber();
-      
+      const hit = fireChamber();
+
       state.turns++;
-      updateHUD();
-      
-      // Wait for effects
-      await sleep(isBullet ? 700 : 400);
-      
-      if (isBullet) {
-        // Player "died"
+
+      await sleep(hit ? 800 : 350);
+
+      if (hit) {
+        // DEFEAT — everything resets
         state.gameActive = false;
-        showMessage('Выстрел', 'lose');
-        await sleep(1200);
-        endGame(false);
+        stopHeartbeat();
+        document.body.classList.remove('danger', 'tense');
+
+        state.best = Math.max(state.best, state.streak);
+        localStorage.setItem(STORAGE_KEY, state.best);
+
+        updateHUD();
+        showMessage('ВЫСТРЕЛ', `серия: ${state.streak} · рекорд: ${state.best}`, 'lose');
+
+        await sleep(1400);
+        resetGame();
         return;
       }
-      
-      // Check win condition
-      if (state.firedChambers.size >= CHAMBERS) {
-        // All chambers fired without bullet -> impossible but safety
-        endGame(true);
-        return;
+
+      // Survived
+      state.streak++;
+      if (state.streak > state.best) {
+        state.best = state.streak;
+        localStorage.setItem(STORAGE_KEY, state.best);
       }
-      
-      // Check if all bullets fired
-      if (state.firedChambers.size === state.bulletCount) {
-        // All bullets fired (somehow survived) - win
-        state.gameActive = false;
-        showMessage('Победа', 'win');
-        await sleep(1200);
-        endGame(true);
-        return;
-      }
-      
+
       // Move to next chamber
       state.currentChamber = (state.currentChamber + 1) % CHAMBERS;
       updateCylinderRotation();
-      
-      await sleep(300);
-      
-      // Check if current chamber already fired
-      let safety = 0;
-      while (state.firedChambers.has(state.currentChamber) && safety < CHAMBERS) {
-        state.currentChamber = (state.currentChamber + 1) % CHAMBERS;
-        safety++;
-      }
-      
       updateHUD();
+
+      await sleep(400);
+
+      // Skip already-fired chambers (rare edge case)
+      let guard = 0;
+      while (state.firedChambers.has(state.currentChamber) && guard++ < CHAMBERS) {
+        state.currentChamber = (state.currentChamber + 1) % CHAMBERS;
+      }
+
+      updateHUD();
+
+      // All bullets fired? You survived against odds
+      if (state.firedChambers.size >= CHAMBERS - (CHAMBERS - state.bulletCount) - state.bulletCount + state.bulletCount) {
+        // (defensive: never reached with current logic)
+      }
+      if (state.firedChambers.size >= CHAMBERS) {
+        // Impossible edge — safety win
+        await finishVictory();
+        return;
+      }
+
       actionBtn.disabled = false;
-      btnText.textContent = 'Нажать на курок';
-      
+
     } finally {
       state.isAnimating = false;
     }
   }
 
+  async function finishVictory() {
+    state.gameActive = false;
+    stopHeartbeat();
+    document.body.classList.remove('danger', 'tense');
+    playWin();
+    state.best = Math.max(state.best, state.streak);
+    localStorage.setItem(STORAGE_KEY, state.best);
+    updateHUD();
+    showMessage('ПУСТО', `все камеры отработаны · серия: ${state.streak}`, 'win');
+    await sleep(1400);
+    resetGame();
+  }
+
+  // ===== Game flow =====
   function startGame() {
+    initAudio();
+    // Reset all state
     state.turns = 0;
+    state.streak = 0;
     state.currentChamber = 0;
     state.rotation = 0;
     state.firedChambers.clear();
     state.gameActive = true;
-    
+
     generateBullets();
     updateCylinderRotation(false);
     updateHUD();
-    
-    actionBtn.classList.add('danger');
+
+    actionBtn.classList.add('armed');
     btnText.textContent = 'Нажать на курок';
-    
-    diffBtns.forEach(btn => btn.disabled = true);
+    diffBtns.forEach(b => b.disabled = true);
+
+    // Brief tension intro
+    playTone(140, 0.6, 'sine', 0.06, 90);
+    startHeartbeat();
   }
 
-  function endGame(won) {
+  function resetGame() {
     state.gameActive = false;
-    actionBtn.classList.remove('danger');
+    state.isAnimating = false;
+    stopHeartbeat();
+    document.body.classList.remove('danger', 'tense');
+
+    state.turns = 0;
+    state.streak = 0;
+    state.currentChamber = 0;
+    state.rotation = 0;
+
+    // Reset visual chambers
+    state.chamberEls.forEach(el => el.classList.remove('spent'));
+    state.bulletEls.forEach(el => el.classList.remove('visible', 'fired'));
+    state.firedChambers.clear();
+    state.bullets.clear();
+
+    updateCylinderRotation(false);
+    updateHUD();
+
+    actionBtn.classList.remove('armed');
     actionBtn.disabled = false;
-    btnText.textContent = 'Играть снова';
-    diffBtns.forEach(btn => btn.disabled = false);
-    
-    if (won) {
-      actionBtn.style.borderColor = 'var(--accent)';
-    } else {
-      actionBtn.style.borderColor = 'var(--border)';
-    }
+    btnText.textContent = 'Взвести курок';
+    diffBtns.forEach(b => b.disabled = false);
   }
 
-  // ===== Event Listeners =====
+  // ===== Events =====
   actionBtn.addEventListener('click', () => {
     if (state.isAnimating) return;
-    
     if (!state.gameActive) {
       startGame();
-      // Auto-pull after short delay for smooth experience
       setTimeout(() => {
-        if (state.gameActive && !state.isAnimating) {
-          pullTrigger();
-        }
-      }, 200);
+        if (state.gameActive && !state.isAnimating) pullTrigger();
+      }, 300);
     } else {
       pullTrigger();
     }
@@ -908,12 +1169,13 @@
       diffBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.bulletCount = parseInt(btn.dataset.bullets, 10);
-      updateHUD();
+      // Update risk display
+      const chance = Math.round((state.bulletCount / CHAMBERS) * 100);
+      chanceEl.textContent = `${chance}%`;
     });
   });
 
-  // Keyboard support
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'Enter') {
       e.preventDefault();
       actionBtn.click();
@@ -924,7 +1186,18 @@
   createChambers();
   generateBullets();
   updateCylinderRotation(false);
+  bestEl.textContent = state.best;
   updateHUD();
+
+  // Resume audio on first interaction (browser policy)
+  const resumeAudio = () => {
+    initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    document.removeEventListener('click', resumeAudio);
+    document.removeEventListener('keydown', resumeAudio);
+  };
+  document.addEventListener('click', resumeAudio);
+  document.addEventListener('keydown', resumeAudio);
 })();
 </script>
 </body>
